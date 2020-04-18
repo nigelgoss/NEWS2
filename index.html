@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+
+<html>
+
+	<head>
+	
+		<meta charset="UTF-8">
+		<meta name="viewport" content="width=device-width; initial-scale=1.0; maximum-scale=1.0; user-scalable=no;">
+		<meta name="apple-mobile-web-app-capable" content="yes">
+		
+		<title>NEWS2</title>
+		
+		<style>
+			
+			html { height:100%; width:100%; }
+			body { margin:0; background-color:#eeeeee; height:100%; font-family:Arial; font-size:0.7em; user-select:none; touch-action:none; }
+			div { box-sizing:border-box; }
+			li { padding:10px; }
+			em { font-size:0.8em; }
+			
+			.hide { display:none !important; }
+			
+			.flex_col { display:flex; flex-direction:column; }
+			.flex_row { display:flex; flex-direction:row; }
+			.flex_roworcol { display:flex; }
+			@media only screen and (orientation: landscape) { .flex_roworcol { flex-direction:row; } }
+			@media only screen and (orientation: portrait) { .flex_roworcol { flex-direction:column; } }
+			.flex_0 { flex-grow:0; flex-shrink:0; }
+			.flex_1 { flex-grow:1; flex-shrink:1; flex-basis:auto; }
+		
+			.flex_col.align_4 { align-items:flex-start; justify-content:center; }
+			
+			.align_5 { display:flex; align-items:center; justify-content:center; }
+		
+			.flex_row.align_4 { align-items:center; justify-content:flex-start; }
+		
+			.b { border:2px solid grey; margin:1px; padding:5px; }
+			.selected { border-color:blue; }
+			
+		</style>
+	
+	</head>
+	
+	<body></body>
+	
+	<script>
+		
+		var colours = ["#fffffd", "#fff0ab", "#f4c389", "#e8907c"];
+		
+		var indicators = ["Respirations", "SpO₂", "Oxygen", "Blood_Pressure", "Pulse", "Consciousness", "Temperature"];
+		
+		var lookup = {
+			"Respirations": {
+				"Units": "Breaths/min",
+				"Description": undefined
+			},
+			"SpO₂": {
+				"Units": "%",
+				"Description": "Oxygen saturation"
+			},
+			"Oxygen": {
+				"Units": undefined,
+				"Description": undefined
+			},
+			"Blood_Pressure": {
+				"Units": "mmHg",
+				"Description": "Score uses systolic BP only"
+			},
+			"Pulse": {
+				"Units": "Beats/min",
+				"Description": undefined
+			},
+			"Consciousness": {
+				"Units": undefined,
+				"Description": undefined
+			},
+			"Temperature": {
+				"Units": "&deg;C",
+				"Description": undefined
+			},
+			"NEWS2": {
+				"Units": undefined,
+				"Description": "Total score"
+			}
+		};
+		
+		var selected;
+		var store = {};
+		indicators.forEach(function (v) { store[v] = null; });
+		store["NEWS2"] = null;
+		
+		function selectIndicator ($indicator) {
+			
+			selected = $indicator;
+			
+			document.querySelectorAll(".selected").forEach(function (v) { v.classList.remove("selected"); });
+			document.querySelectorAll("."+$indicator).forEach(function (v) { v.classList.add("selected"); });
+			
+			inputNumberPadDisplay.innerHTML = "";
+			
+			inputNumberPad.classList.add("hide");
+			inputOxygen.classList.add("hide");
+			inputConsciousness.classList.add("hide");
+			outputNEWS2.classList.add("hide");
+			if (["Respirations", "SpO₂", "Blood_Pressure", "Pulse", "Temperature"].indexOf(selected) > -1) inputNumberPad.classList.remove("hide");
+			if (["Oxygen"].indexOf(selected) > -1) inputOxygen.classList.remove("hide");
+			if (["Consciousness"].indexOf(selected) > -1) inputConsciousness.classList.remove("hide");
+			if (["NEWS2"].indexOf(selected) > -1) outputNEWS2.classList.remove("hide");
+			
+		}
+		
+		function update () {
+		
+			var score = {};
+			score["Respirations"] = (store.Respirations === null) ? null : (store.Respirations <= 8) ? 3 : (store.Respirations <= 11) ? 1 : (store.Respirations <= 20) ? 0 : (store.Respirations <= 24) ? 2 : 3;
+			score["SpO₂"] = (store["SpO₂"] === null) ? null : (store["SpO₂"] <= 91) ? 3 : (store["SpO₂"] <= 93) ? 2 : (store["SpO₂"] <= 95) ? 1 : 0;
+			score["Oxygen"] = (store["Oxygen"] === null) ? null : (store["Oxygen"] === "Oxygen") ? 2 : 0;
+			score["Blood_Pressure"] = (store["Blood_Pressure"] === null) ? null : (store["Blood_Pressure"] <= 90) ? 3 : (store["Blood_Pressure"] <= 100) ? 2 : (store["Blood_Pressure"] <= 110) ? 1 : (store["Blood_Pressure"] <= 219) ? 0 : 3;
+			score["Pulse"] = (store["Pulse"] === null) ? null : (store["Pulse"] <= 40) ? 3 : (store["Pulse"] <= 50) ? 1 : (store["Pulse"] <= 90) ? 0 : (store["Pulse"] <= 110) ? 1 : (store["Pulse"] <= 130) ? 2 : 3;
+			score["Consciousness"] = (store["Consciousness"] === null) ? null : (store["Consciousness"] === "Alert") ? 0 : 3;
+			score["Temperature"] = (store["Temperature"] === null) ? null : (store["Temperature"] <= 35) ? 3 : (store["Temperature"] <= 36) ? 1 : (store["Temperature"] <= 38) ? 0 : (store["Temperature"] <= 39) ? 1 : 2;
+			
+			store["NEWS2"] = score["Respirations"] + score["SpO₂"] + score["Oxygen"] + score["Blood_Pressure"] + score["Pulse"] + score["Consciousness"] + score["Temperature"];
+			var maxScore = Math.max(score["Respirations"], score["SpO₂"], score["Oxygen"], score["Blood_Pressure"], score["Pulse"], score["Consciousness"], score["Temperature"]);
+			var anyNull = score["Respirations"] === null || score["SpO₂"] === null || score["Oxygen"] === null || score["Blood_Pressure"] === null || score["Pulse"] === null || score["Consciousness"] === null || score["Temperature"];
+			store["NEWS2Risk"] = (store["NEWS2"] >= 7) ? 3 : (store["NEWS2"] >= 5) ? 2 : (maxScore >= 3) ? 1 : 0;
+			
+			indicators.forEach(function (v) {
+				document.querySelector("#value_" + v).innerHTML = (store[v] === null) ? "-" : store[v]; 
+				document.querySelector("#score_" + v).innerHTML = (score[v] === null) ? "-" : score[v];
+				document.querySelector("#div_" + v).style.backgroundColor = (score[v] === null) ? "lightgrey" : colours[score[v]];
+			});
+			
+			document.querySelector("#value_NEWS2").innerHTML = (store["NEWS2Risk"] === null) ? "-" : store["NEWS2Risk"];
+			document.querySelector("#score_NEWS2").innerHTML = (store["NEWS2"] === null) ? "-" : store["NEWS2"]; 
+			document.querySelector("#div_NEWS2").style.backgroundColor = (store["NEWS2Risk"] === null) ? "lightgrey" : colours[store["NEWS2Risk"]];
+			
+			if (anyNull === true) {
+				divResult.style.backgroundColor = "lightgrey";
+				divResult.innerHTML = "<strong>Incomplete</strong><span style='text-align:center;'>Observations are incomplete. Score shown is based on observations provided only.</span>";
+			} else if (store["NEWS2"] === 0) {
+			divResult.style.backgroundColor = "lightgrey";
+				divResult.innerHTML = "<strong>Clinical Risk: &nbsp; Low</strong><ul><li>Continue routine NEWS monitoring</ul>";
+			} else if (store["NEWS2Risk"] === 0) {
+				divResult.style.backgroundColor = colours[store["NEWS2Risk"]];
+				divResult.innerHTML = "<strong>Clinical Risk: &nbsp; Low</strong><ul><li>Inform registered nurse, who must assess the patient<li>Registered nurse decides whether increased frequency of monitoring and/or escalation of care is required</ul>";
+			} else if (store["NEWS2Risk"] === 1) {
+				divResult.style.backgroundColor = colours[store["NEWS2Risk"]];
+				divResult.innerHTML = "<strong>Clinical Risk: &nbsp; Low - Medium</strong><ul><li>Registered nurse to inform medical team caring for the patient, who will review and decide whether escalation of care is necessary</ul>";
+			} else if (store["NEWS2Risk"] === 2) {
+				divResult.style.backgroundColor = colours[store["NEWS2Risk"]];
+				divResult.innerHTML = "<strong>Clinical Risk: &nbsp; Medium</strong><ul><li>Registered nurse to immediately inform the medical team caring for the patient<li>Registered nurse to request urgent assessment by a clinician or team with core competencies threshold in the care of acutely ill patients<li>Provide clinical care in an environment with monitoring facilities</ul>";
+			} else if (store["NEWS2Risk"] === 3) {
+				divResult.style.backgroundColor = colours[store["NEWS2Risk"]];
+				divResult.innerHTML = "<strong>Clinical Risk: &nbsp; High</strong><ul><li>Registered nurse to immediately inform the medical team caring for the patient – this should be at least at specialist registrar level<li>Emergency assessment by a team with critical care competencies, including practitioner(s) with advanced airway management skills<li>Consider transfer of care to a level 2 or 3 clinical care facility, ie higher-dependency unit or ICU<li>Clinical care in an environment with monitoring facilities</ul>";
+			};
+			
+			var indicators2 = indicators.concat(["NEWS2"]);
+			selectIndicator (indicators2[indicators2.indexOf(selected)+1]);
+		
+		}
+		
+		// ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- -----
+		
+		document.body.className = "flex_col";
+		
+		var divTop = document.createElement("div"); document.body.appendChild(divTop);
+		divTop.className = "flex_0";
+		divTop.style.backgroundColor = "lightblue";
+		divTop.innerHTML = "</br>Patient Banner</br></br>";
+		divTop.style.textAlign = "center";
+		
+		var divBottom = document.createElement("div"); document.body.appendChild(divBottom);
+		divBottom.className = "flex_1 flex_roworcol"; //Change with orientation
+		
+			var divLeft = document.createElement("div"); divBottom.appendChild(divLeft);
+			divLeft.className = "flex_1 flex_col";
+			divLeft.style.flexBasis = "50%";
+			
+			var divRight = document.createElement("div"); divBottom.appendChild(divRight);
+			divRight.className = "flex_1 flex_col";
+			divRight.style.flexBasis = "50%";
+			
+		// ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- -----
+		
+		indicators.concat(["NEWS2"]).forEach(function (v) {
+		
+			var div = document.createElement("div"); divLeft.appendChild(div);
+			div.id = "div_" + v;
+			div.className = "flex_1 flex_row b";
+			div.style.flexBasis = "1px";
+			div.classList.add(v);
+			div.ontouchstart = function () { selectIndicator(v); };
+				
+				var div2 = document.createElement("div"); div.appendChild(div2);
+				div2.className = "flex_1 align_4 flex_col";
+				div2.style.flexBasis = "50%";
+				
+					var strong = document.createElement("strong"); div2.appendChild(strong);
+					strong.innerHTML = v;
+				
+					if (lookup[v]["Description"] !== undefined) {
+						var em = document.createElement("em"); div2.appendChild(em);
+						em.innerHTML = "&emsp;" + lookup[v]["Description"];
+					};
+			
+				var div2 = document.createElement("div"); div.appendChild(div2);
+				div2.id = "score_" + v;
+				div2.style.flexBasis = "25%";
+				div2.className = "flex_0 align_4 flex_row";
+				
+				var div2 = document.createElement("div"); div.appendChild(div2);
+				div2.style.flexBasis = "25%";
+				div2.className = "flex_0 align_4 flex_row";
+				
+					var span = document.createElement("span"); div2.appendChild(span);
+					span.id = "value_" + v;
+				
+					if (lookup[v]["Units"] !== undefined) {
+						var em = document.createElement("em"); div2.appendChild(em);
+						em.innerHTML = "&nbsp;" + lookup[v]["Units"];
+					};
+
+		});
+		
+		// ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- -----
+	
+		var inputNumberPad = document.createElement("div"); divRight.appendChild(inputNumberPad);
+		inputNumberPad.className = "flex_1 flex_col hide";
+			
+			var inputNumberPadDisplay = document.createElement("div"); inputNumberPad.appendChild(inputNumberPadDisplay);
+			inputNumberPadDisplay.className = "flex_1 align_5 b";
+			inputNumberPadDisplay.style.flexBasis = "1px";
+			inputNumberPadDisplay.style.fontSize = "1.5em";
+			inputNumberPadDisplay.style.fontWeight = "bold";
+			inputNumberPadDisplay.innerHTML = "";
+			inputNumberPadDisplay.ontouchstart = function () {
+				inputNumberPadDisplay.innerHTML = "";
+			};
+			
+			[
+				["1", "2", "3"],
+				["4", "5", "6"],
+				["7", "8", "9"],
+				[".", "0", "✔"],
+			].forEach(function (v) {
+			
+				var div2 = document.createElement("div"); inputNumberPad.appendChild(div2);
+				div2.className = "flex_1 flex_row";
+				
+					v.forEach(function (v1) {
+				
+						var div3 = document.createElement("div"); div2.appendChild(div3);
+						div3.className = "flex_1 align_5 b";
+						div3.style.flexBasis = "1px";
+						div3.innerHTML = v1;
+						div3.ontouchstart = function () {
+							
+							if (v1 === "✔") {
+								store[selected] = Number(inputNumberPadDisplay.innerHTML);
+								inputNumberPadDisplay.innerHTML = "";
+								update();
+							} else {
+								if (isNaN(inputNumberPadDisplay.innerHTML + v1) === false) inputNumberPadDisplay.innerHTML += v1;
+							};
+							
+						};
+					
+					});
+					
+			});
+			
+			var div2 = document.createElement("div"); inputNumberPad.appendChild(div2);
+			div2.className = "flex_0 align_5 b";
+			div2.innerHTML = "Not taken";
+			div2.ontouchstart = function () {
+				store[selected] = null;
+				update();
+			};
+			
+		// ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- -----
+	
+		var inputOxygen = document.createElement("div"); divRight.appendChild(inputOxygen);
+		inputOxygen.className = "flex_1 flex_col";
+			
+			[
+				["Air", "Room air"],
+				["Oxygen", "Supplemental Oxygen"]
+			].forEach(function (v) {
+				var div2 = document.createElement("div"); inputOxygen.appendChild(div2);
+				div2.className = "flex_1 align_5 b flex_col";
+				div2.ontouchstart = function () { store[selected] = v[0]; update();	};
+				var strong = document.createElement("strong"); div2.appendChild(strong); strong.innerHTML = v[0];
+				var em = document.createElement("em"); div2.appendChild(em); em.innerHTML = v[1];
+			});
+			
+			var div2 = document.createElement("div"); inputOxygen.appendChild(div2);
+			div2.className = "flex_0 align_5 b";
+			div2.innerHTML = "Not taken";
+			div2.ontouchstart = function () {
+				store[selected] = null;
+				update();
+			};
+			
+		// ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- -----
+		
+		var inputConsciousness = document.createElement("div"); divRight.appendChild(inputConsciousness);
+		inputConsciousness.className = "flex_1 flex_col";
+			
+			[
+				["Alert", "The patient is awake"],
+				["Confused", "The patient has a new onset confusion"],
+				["Voice", "The patient response to verbal stimulation"],
+				["Pain", "The patient responds to painful stimulation"],
+				["Unresponsive", "The patient is completely unresponsive"],
+			].forEach(function (v) {
+				var div2 = document.createElement("div"); inputConsciousness.appendChild(div2);
+				div2.className = "flex_1 align_5 b flex_col";
+				div2.ontouchstart = function () { store[selected] = v[0]; update(); };
+				var strong = document.createElement("strong"); div2.appendChild(strong); strong.innerHTML = v[0];
+				var em = document.createElement("em"); div2.appendChild(em); em.innerHTML = v[1];
+			});
+			
+			var div2 = document.createElement("div"); inputConsciousness.appendChild(div2);
+			div2.className = "flex_0 align_5 b";
+			div2.innerHTML = "Not taken";
+			div2.ontouchstart = function () {
+				store[selected] = null;
+				update();
+			};
+			
+		// ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- -----
+	
+		var outputNEWS2 = document.createElement("div"); divRight.appendChild(outputNEWS2);
+		outputNEWS2.className = "flex_1 flex_col";
+			
+			var divResult = document.createElement("div"); outputNEWS2.appendChild(divResult);
+			divResult.className = "flex_1 align_5 b flex_col";
+			divResult.innerHTML = "NEWS2 Result";
+			
+			var div2 = document.createElement("div"); outputNEWS2.appendChild(div2);
+			div2.className = "flex_0 align_5 b";
+			div2.innerHTML = "✔ &nbsp; Save";
+			div2.ontouchstart = function () {
+				window.location.reload();
+			};
+			
+		// ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- ----- -----
+		
+		
+		
+		update();
+		
+	</script>
+	
+</html>
